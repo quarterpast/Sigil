@@ -15,25 +15,35 @@ var Sigil = {
 	compile: function(text) {
 		function blank(){return "";}
 		function Exit(){}
-		var defers = {},
+		var state = {tag:"",scope:""},
 		sigils = {
 			"$": function variable_(expr) {
-				if(!expr) return null;
+				console.log(state.tag,expr)
 				return vm.createScript(expr);
 			},
 			"@": function list_(expr) {
+				state.tag = "@";
 				return blank;
 			},
 			"%": function scope_(expr) {
+				state.tag = "%";
 				return blank;
 			},
 			"?": function if_(expr) {
+				state.tag = "?";
 				return blank;
 			},
 			"!": function else_(expr) {
+				var close = '';
+				if(state.tag) {
+					this["/"](expr);
+					close = state.tag;
+				}
+				state.tag = "!";
 				return blank;
 			},
 			"/": function end_(expr) {
+				console.log(state.tag)
 				return blank;
 			},
 			"<": function include_(expr) {
@@ -43,13 +53,13 @@ var Sigil = {
 				return blank;
 			},
 			"*": function exit_(expr) {
-				assert.equal(expr,"");
+				assert.equal(expr,undefined);
 				return function(){throw new Exit};
 			}
 		}, promises = [];
 		text += "*{}";
 		text.replace(
-			/([\s\S]*?)([\*~#@%&\$:\/])\{([^\n\r\}]*)\}/g,
+			/([\s\S]*?)([\*~#@%&\$:\/])\{([a-z\$_][a-z\$_\d]*)?\}/gi,
 			function(m,before,sigil,expr) {
 				var out = sigils[sigil](expr);
 				before && promises.push(before);
