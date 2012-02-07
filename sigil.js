@@ -44,12 +44,10 @@ var Sigil = {
 		}, promises = [];
 		text += "${}";
 		text.replace(
-			/([\s\S]*?)([\*~#@%&\$:\/])\{([^\n\r\}]*)\}([\s\S]*?)/g,
-			function(m,before,sigil,expr,after) {
+			/([\s\S]*?)([\*~#@%&\$:\/])\{([^\n\r\}]*)\}/g,
+			function(m,before,sigil,expr) {
 				before && promises.push(before);
 				promises.push(sigils[sigil](expr));
-				after && promises.push(after);
-
 			}
 		);
 		assert.equal(promises.pop(),null);
