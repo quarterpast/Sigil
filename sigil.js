@@ -15,36 +15,28 @@ var Sigil = {
 	compile: function(text) {
 		function blank(){return "";}
 		function Exit(){}
-		var state = {tag:"",scope:[],indices:{},capture:{}},
+		var state = {tag:"/",scope:[],capture:{}},
 		sigils = {
 			"$": function variable_(expr) {
 				var id = expr;
 				if(state.scope.length) {
 					id = state.scope.join(".")+"["+(
-						expr || state.indices[state.scope.join(".")]++
+						expr || "i"
 					)+"]";
 				}
-				console.log(id)
+				console.log("$",id)
 				return vm.createScript(id);
 			},
 			"@": function list_(expr) {
 				state.scope.push(expr);
-
-				state.indices[state.scope.join(".")] = 0;
-				state.skipBefore = true;
-				state.tag = "@";
 				return blank;
 			},
 			"%": function scope_(expr) {
 				state.scope.push(expr);
-				state.skipBefore = true;
-				state.tag = "%";
 				return blank;
 			},
 			"?": function if_(expr) {
 				state.scope.push(expr);
-				state.skipBefore = true;
-				state.tag = "?";
 				return blank;
 			},
 			"!": function else_(expr) {
@@ -54,14 +46,11 @@ var Sigil = {
 					this["/"](expr);
 					close = state.tag;
 				}
-				state.skipBefore = true;
-				state.tag = "!";
 				return blank;
 			},
 			"/": function end_(expr) {
-				console.log(state.capture[state.scope.join(".")])
+				console.log("/",state.capture)
 				state.scope.pop();
-				state.tag = "";
 				return blank;
 			},
 			"<": function include_(expr) {
@@ -79,13 +68,16 @@ var Sigil = {
 		text.replace(
 			/([\s\S]*?)([\*~#@%&\$:\/])\{([a-z\$_][a-z\$_\d]*)?\}/gi,
 			function(m,before,sigil,expr) {
-				var out = sigils[sigil](expr);
 				switch(state.tag) {
+					case "?":
+					case "!":
+					case "/":
 					case "@":
 					case "%":
+						console.log("switch",state)
 						if(!(state.scope.join(".") in state.capture))
 							state.capture[state.scope.join(".")] = [];
-							
+
 						if(before) {
 							if(state.skipBefore) {
 								promises.push(before);
@@ -95,11 +87,13 @@ var Sigil = {
 								);
 							}
 						}
-						state.capture[state.scope.join(".")].push(out);
+						state.tag = sigil;
+						state.capture[state.scope.join(".")].push(sigils[sigil](expr));
+						
 					break;
 					default:
 						before && promises.push(before);
-						promises.push(out);
+						promises.push(sigils[sigil](expr));
 				}
 			}
 		);
