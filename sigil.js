@@ -72,8 +72,7 @@ var Sigil = {
 				return blank;
 			}
 		}, promises = [];
-		text = "*{}"+text;
-		text.replace(
+		("*{}"+text).replace(
 			/([\*~#@%&\$:\/])\{([a-z\$_][a-z\$_\d]*)?\}([\s\S]*?)/gi,
 			function(m,sigil,expr,after) {
 				var out = sigils[sigil](expr);
