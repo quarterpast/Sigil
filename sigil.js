@@ -14,6 +14,7 @@ Object.isNodeScript = function(obj) {
 var Sigil = {
 	compile: function(text) {
 		function blank(){return "";}
+		function Exit(){}
 		var defers = {},
 		sigils = {
 			"$": function variable_(expr) {
@@ -40,17 +41,22 @@ var Sigil = {
 			},
 			">": function extend_(expr) {
 				return blank;
+			},
+			"*": function exit_(expr) {
+				assert.equal(expr,"");
+				return function(){throw new Exit};
 			}
 		}, promises = [];
-		text += "${}";
+		text += "*{}";
 		text.replace(
 			/([\s\S]*?)([\*~#@%&\$:\/])\{([^\n\r\}]*)\}/g,
 			function(m,before,sigil,expr) {
+				var out = sigils[sigil](expr);
 				before && promises.push(before);
-				promises.push(sigils[sigil](expr));
+				promises.push(out);
 			}
 		);
-		assert.equal(promises.pop(),null);
+		assert.throws(promises.pop(), Exit);
 		return {
 			exec: function(env) {
 				return promises.map(function(p) {
