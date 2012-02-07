@@ -17,55 +17,85 @@ var Sigil = {
 		function Exit(){}
 		var state = {tag:"",scope:[],capture:{}},
 		sigils = {
-			"$": function variable_(expr) {
-				var id = expr;
-				if(state.scope.length) {
-					id = state.scope.join(".")+"["+(
-						expr || "i"
-					)+"]";
+			"$": {
+				before: function variable_(expr) {
+					this.id = expr;
+					if(state.scope.length) {
+						this.id = state.scope.join(".")+"["+(
+							expr || "i"
+						)+"]";
+					}
+				},
+				after: function variable_(expr) {
+					return vm.createScript(this.id);
 				}
-				return vm.createScript(id);
 			},
-			"@": function list_(expr) {
-				state.tag = '@';
-				state.scope.push(expr);
-				return blank;
-			},
-			"%": function scope_(expr) {
-				state.tag = '%';
-				state.scope.push(expr);
-				return blank;
-			},
-			"?": function if_(expr) {
-				state.tag = '?';
-				state.scope.push(expr);
-				return blank;
-			},
-			"!": function else_(expr) {
-				state.tag = '!';
-				state.scope.push(expr);
-				var close = '';
-				if(state.tag) {
-					this["/"](expr);
-					close = state.tag;
+			"@": {
+				before: function list_(expr) {
+					state.tag = '@';
+					state.scope.push(expr);
+				},
+				after: function list_(expr) {
+					return blank;
 				}
-				return blank;
 			},
-			"/": function end_(expr) {
-				state.tag = '';
-				console.log("/",state.capture)
-				state.scope.pop();
-				return blank;
+			"%": {
+				before: function scope_(expr) {
+					state.tag = '%';
+					state.scope.push(expr);
+				},
+				after: function scope_(expr) {
+					return blank;
+				}
 			},
-			"<": function include_(expr) {
-				return blank;
+			"?": {
+				before: function if_(expr) {
+					state.tag = '?';
+					state.scope.push(expr);
+				},
+				after: function if_(expr) {
+					return blank;
+				}
 			},
-			">": function extend_(expr) {
-				return blank;
+			"!": {
+				before: function else_(expr) {
+					state.tag = '!';
+					state.scope.push(expr);
+				},
+				after: function else_(expr) {
+					return blank;
+				}
 			},
-			"*": function exit_(expr) {
-				assert.equal(expr,undefined);
-				return blank;
+			"/": {
+				before: function end_(expr) {
+					state.tag = '/';
+					console.log("/",state.capture);
+				},
+				after: function end_(expr) {
+					return blank;
+				}
+			},
+			"<": {
+				before: function include_(expr) {
+				},
+				after: function include_(expr) {
+					return blank;
+				}
+			},
+			">": {
+				before: function extend_(expr) {
+				},
+				after: function extend_(expr) {
+					return blank;
+				}
+			},
+			"*": {
+				before: function exit_(expr) {
+					assert.equal(expr,undefined);
+				},
+				after: function exit_(expr) {
+					return blank;
+				}
 			}
 		}, promises = [];
 		(text+"*{}").replace(
@@ -79,10 +109,10 @@ var Sigil = {
 					case "/":
 					case "@":
 					case "%":
-						console.log("switch",state)
+						console.log("switch",state,oldscope)
 						if(!(state.scope.join(".") in state.capture))
 							state.capture[state.scope.join(".")] = [];
-
+						console.log("before",before)
 						if(before) {
 							if(Object.equal(oldscope,state.scope) && state.tag != "/") {
 								promises.push(before);
@@ -93,7 +123,7 @@ var Sigil = {
 							}
 						}
 						state.capture[state.scope.join(".")].push(out);
-						
+						if(sigil == '/') state.tag = '';
 					break;
 					default:
 						before && promises.push(before);
