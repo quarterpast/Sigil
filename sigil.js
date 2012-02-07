@@ -15,7 +15,7 @@ var Sigil = {
 	compile: function(text) {
 		function blank(){return "";}
 		function Exit(){}
-		var state = {tag:"/",scope:[],capture:{}},
+		var state = {tag:"",scope:[],capture:{}},
 		sigils = {
 			"$": function variable_(expr) {
 				var id = expr;
@@ -24,22 +24,25 @@ var Sigil = {
 						expr || "i"
 					)+"]";
 				}
-				console.log("$",id)
 				return vm.createScript(id);
 			},
 			"@": function list_(expr) {
+				state.tag = '@';
 				state.scope.push(expr);
 				return blank;
 			},
 			"%": function scope_(expr) {
+				state.tag = '%';
 				state.scope.push(expr);
 				return blank;
 			},
 			"?": function if_(expr) {
+				state.tag = '?';
 				state.scope.push(expr);
 				return blank;
 			},
 			"!": function else_(expr) {
+				state.tag = '!';
 				state.scope.push(expr);
 				var close = '';
 				if(state.tag) {
@@ -49,6 +52,7 @@ var Sigil = {
 				return blank;
 			},
 			"/": function end_(expr) {
+				state.tag = '';
 				console.log("/",state.capture)
 				state.scope.pop();
 				return blank;
@@ -64,10 +68,11 @@ var Sigil = {
 				return blank;
 			}
 		}, promises = [];
-		text = "*{}"+text;
-		text.replace(
+		(text+"*{}").replace(
 			/([\s\S]*?)([\*~#@%&\$:\/])\{([a-z\$_][a-z\$_\d]*)?\}/gi,
 			function(m,before,sigil,expr) {
+				var oldscope = state.scope;
+				var out = sigils[sigil](expr);
 				switch(state.tag) {
 					case "?":
 					case "!":
@@ -79,7 +84,7 @@ var Sigil = {
 							state.capture[state.scope.join(".")] = [];
 
 						if(before) {
-							if(state.skipBefore) {
+							if(Object.equal(oldscope,state.scope) && state.tag != "/") {
 								promises.push(before);
 							} else {
 								state.capture[state.scope.join(".")].push(
@@ -87,13 +92,12 @@ var Sigil = {
 								);
 							}
 						}
-						state.tag = sigil;
-						state.capture[state.scope.join(".")].push(sigils[sigil](expr));
+						state.capture[state.scope.join(".")].push(out);
 						
 					break;
 					default:
 						before && promises.push(before);
-						promises.push(sigils[sigil](expr));
+						promises.push(out);
 				}
 			}
 		);
