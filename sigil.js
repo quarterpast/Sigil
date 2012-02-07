@@ -72,33 +72,35 @@ var Sigil = {
 				return blank;
 			}
 		}, promises = [];
-		("*{}"+text).replace(
-			/([\*~#@%&\$:\/])\{([a-z\$_][a-z\$_\d]*)?\}([\s\S]*?)/gi,
-			function(m,sigil,expr,after) {
+		text = "*{}"+text;
+		text.replace(
+			/([\s\S]*?)([\*~#@%&\$:\/])\{([a-z\$_][a-z\$_\d]*)?\}/gi,
+			function(m,before,sigil,expr) {
 				var out = sigils[sigil](expr);
 				switch(state.tag) {
 					case "@":
 					case "%":
 						if(state.scope.join(".") in state.capture) {
-							after && state.capture[state.scope.join(".")].push(
-								after
+							before && state.capture[state.scope.join(".")].push(
+								before
 							);
 							state.capture[state.scope.join(".")].push();
 						} else {
 							state.capture[state.scope.join(".")] = [
 								out
 							];
-							after && state.capture[state.scope.join(".")].unshift(
-								after
+							before && state.capture[state.scope.join(".")].unshift(
+								before
 							);
 						}
 					break;
 					default:
-						after && promises.push(after);
+						before && promises.push(before);
 						promises.push(out);
 				}
 			}
 		);
+		assert.throws(promises.pop(), Exit);
 		return {
 			exec: function(env) {
 				return promises.map(function(p) {
