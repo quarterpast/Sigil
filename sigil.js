@@ -100,7 +100,6 @@ var Sigil = {
 				}
 			}
 		);
-		assert.throws(promises.pop(), Exit);
 		return {
 			exec: function(env) {
 				return promises.map(function(p) {
