@@ -31,17 +31,19 @@ var Sigil = {
 				state.scope.push(expr);
 
 				state.indices[state.scope.join(".")] = 0;
-
+				state.skipBefore = true;
 				state.tag = "@";
 				return blank;
 			},
 			"%": function scope_(expr) {
 				state.scope.push(expr);
+				state.skipBefore = true;
 				state.tag = "%";
 				return blank;
 			},
 			"?": function if_(expr) {
 				state.scope.push(expr);
+				state.skipBefore = true;
 				state.tag = "?";
 				return blank;
 			},
@@ -52,6 +54,7 @@ var Sigil = {
 					this["/"](expr);
 					close = state.tag;
 				}
+				state.skipBefore = true;
 				state.tag = "!";
 				return blank;
 			},
@@ -80,19 +83,19 @@ var Sigil = {
 				switch(state.tag) {
 					case "@":
 					case "%":
-						if(state.scope.join(".") in state.capture) {
-							before && state.capture[state.scope.join(".")].push(
-								before
-							);
-							state.capture[state.scope.join(".")].push();
-						} else {
-							state.capture[state.scope.join(".")] = [
-								out
-							];
-							before && state.capture[state.scope.join(".")].unshift(
-								before
-							);
+						if(!(state.scope.join(".") in state.capture))
+							state.capture[state.scope.join(".")] = [];
+							
+						if(before) {
+							if(state.skipBefore) {
+								promises.push(before);
+							} else {
+								state.capture[state.scope.join(".")].push(
+									before
+								);
+							}
 						}
+						state.capture[state.scope.join(".")].push(out);
 					break;
 					default:
 						before && promises.push(before);
