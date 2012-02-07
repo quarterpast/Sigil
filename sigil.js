@@ -15,13 +15,22 @@ var Sigil = {
 	compile: function(text) {
 		function blank(){return "";}
 		function Exit(){}
-		var state = {tag:"",scope:[]},
+		var state = {tag:"",scope:[],indices:{}},
 		sigils = {
 			"$": function variable_(expr) {
-				return vm.createScript(expr);
+				var id = expr;
+				if(state.scope.length) {
+					id = state.scope.join(".")+"["+(
+						expr || state.indices[state.scope.join(".")]++
+					)+"]";
+				}
+				return vm.createScript(id);
 			},
 			"@": function list_(expr) {
 				state.scope.push(expr);
+
+				state.indices[state.scope.join(".")] = 0;
+
 				state.tag = "@";
 				return blank;
 			},
@@ -66,12 +75,14 @@ var Sigil = {
 		text.replace(
 			/([\s\S]*?)([\*~#@%&\$:\/])\{([a-z\$_][a-z\$_\d]*)?\}/gi,
 			function(m,before,sigil,expr) {
-				var out = sigils[sigil](expr);
+				if(state.scope == "") {
+					var out = sigils[sigil](expr);
+				}
 				before && promises.push(before);
 				promises.push(out);
 			}
 		);
-		assert.throws(promises.pop(), Exit);
+		//assert.throws(promises.pop(), Exit);
 		return {
 			exec: function(env) {
 				return promises.map(function(p) {
