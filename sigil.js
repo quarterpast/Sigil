@@ -15,7 +15,7 @@ var Sigil = {
 	compile: function(text) {
 		function blank(){return "";}
 		function Exit(){}
-		var state = {tag:"",scope:[],indices:{}},
+		var state = {tag:"",scope:[],indices:{},capture:{}},
 		sigils = {
 			"$": function variable_(expr) {
 				var id = expr;
@@ -24,6 +24,7 @@ var Sigil = {
 						expr || state.indices[state.scope.join(".")]++
 					)+"]";
 				}
+				console.log(id)
 				return vm.createScript(id);
 			},
 			"@": function list_(expr) {
@@ -55,7 +56,7 @@ var Sigil = {
 				return blank;
 			},
 			"/": function end_(expr) {
-				console.log(state.tag,state.scope)
+				console.log(state.capture[state.scope.join(".")])
 				state.scope.pop();
 				state.tag = "";
 				return blank;
@@ -68,21 +69,38 @@ var Sigil = {
 			},
 			"*": function exit_(expr) {
 				assert.equal(expr,undefined);
-				return function(){throw new Exit};
+				return blank;
 			}
 		}, promises = [];
-		text += "*{}";
+		text = "*{}"+text;
 		text.replace(
-			/([\s\S]*?)([\*~#@%&\$:\/])\{([a-z\$_][a-z\$_\d]*)?\}/gi,
-			function(m,before,sigil,expr) {
-				if(state.scope == "") {
-					var out = sigils[sigil](expr);
+			/([\*~#@%&\$:\/])\{([a-z\$_][a-z\$_\d]*)?\}([\s\S]*?)/gi,
+			function(m,sigil,expr,after) {
+				var out = sigils[sigil](expr);
+				switch(state.tag) {
+					case "@":
+					case "%":
+						if(state.scope.join(".") in state.capture) {
+							after && state.capture[state.scope.join(".")].push(
+								after
+							);
+							state.capture[state.scope.join(".")].push();
+						} else {
+							state.capture[state.scope.join(".")] = [
+								out
+							];
+							after && state.capture[state.scope.join(".")].unshift(
+								after
+							);
+						}
+					break;
+					default:
+						after && promises.push(after);
+						promises.push(out);
 				}
-				before && promises.push(before);
-				promises.push(out);
 			}
 		);
-		//assert.throws(promises.pop(), Exit);
+		assert.throws(promises.pop(), Exit);
 		return {
 			exec: function(env) {
 				return promises.map(function(p) {
