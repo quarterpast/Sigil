@@ -68,10 +68,10 @@ var Sigil = {
 			},
 			"/": {
 				before: function end_(expr) {
-					state.tag = '/';
 					console.log("/",state.capture);
 				},
 				after: function end_(expr) {
+					state.tag = '';
 					return blank;
 				}
 			},
@@ -102,7 +102,7 @@ var Sigil = {
 			/([\s\S]*?)([\*~#@%&\$:\/])\{([a-z\$_][a-z\$_\d]*)?\}/gi,
 			function(m,before,sigil,expr) {
 				var oldscope = state.scope;
-				var out = sigils[sigil](expr);
+				sigils[sigil].before(expr);
 				switch(state.tag) {
 					case "?":
 					case "!":
@@ -122,12 +122,13 @@ var Sigil = {
 								);
 							}
 						}
-						state.capture[state.scope.join(".")].push(out);
-						if(sigil == '/') state.tag = '';
+						state.capture[state.scope.join(".")].push(
+							sigils[sigil].after(expr)
+						);
 					break;
 					default:
 						before && promises.push(before);
-						promises.push(out);
+						promises.push(sigils[sigil].after(expr));
 				}
 			}
 		);
